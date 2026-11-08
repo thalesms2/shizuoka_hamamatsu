@@ -1,0 +1,216 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Tenant {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  deleted   Boolean   @default(false)
+  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  name String? @db.VarChar(255)
+
+  users           User[]
+  clients         Client[]
+  services        Service[]
+  invoices        Invoice[]
+  transactions    Transaction[]
+  accessHistories AccessHistory[]
+  refreshTokens   RefreshToken[]
+  messages        Message[]
+  phone           Phone?
+
+  @@map("tenants")
+}
+
+model User {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
+  deleted   Boolean   @default(false)
+  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  name     String @db.VarChar(255)
+  email    String @db.VarChar(255)
+  password String @db.VarChar(255)
+  role     String @db.VarChar(255)
+
+  tenant          Tenant          @relation(fields: [tenantId], references: [id], map: "fk_tenant")
+  services        Service[]
+  accessHistories AccessHistory[]
+  refreshTokens   RefreshToken[]
+
+  @@unique([tenantId, email])
+  @@map("users")
+}
+
+model Client {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
+  deleted   Boolean   @default(false)
+  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  name  String @db.VarChar(255)
+  phone String @db.VarChar(255)
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], map: "fk_tenant")
+  services     Service[]
+  invoices     Invoice[]
+  transactions Transaction[]
+  messages     Message[]
+
+  @@map("clients")
+}
+
+model Service {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
+  deleted   Boolean   @default(false)
+  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  description String?   @db.VarChar(255)
+  value       Int?
+  balance     Int?
+  canceled    Boolean   @default(false)
+  canceledAt  DateTime? @map("canceled_at") @db.Timestamptz(6)
+  clientId    String?   @map("client_id") @db.Uuid
+  userId      String?   @map("user_id") @db.Uuid
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], map: "fk_tenant")
+  client       Client?       @relation(fields: [clientId], references: [id], map: "fk_client")
+  user         User?         @relation(fields: [userId], references: [id], map: "fk_user")
+  transactions Transaction[]
+
+  @@map("services")
+}
+
+model Invoice {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
+  deleted   Boolean   @default(false)
+  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  description String?   @db.VarChar(255)
+  value       Int
+  balance     Int
+  due         DateTime? @db.Timestamptz(6)
+  canceled    Boolean   @default(false)
+  canceledAt  DateTime? @map("canceled_at") @db.Timestamptz(6)
+  clientId    String?   @map("client_id") @db.Uuid
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], map: "fk_tenant")
+  client       Client?       @relation(fields: [clientId], references: [id], map: "fk_client")
+  transactions Transaction[]
+
+  @@map("invoices")
+}
+
+model Transaction {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
+  deleted   Boolean   @default(false)
+  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  description String? @db.VarChar(255)
+  value       Int
+  operation   String  @db.VarChar(255)
+  clientId    String  @map("client_id") @db.Uuid
+  invoiceId   String? @map("invoice_id") @db.Uuid
+  serviceId   String? @map("service_id") @db.Uuid
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], map: "fk_tenant")
+  client  Client   @relation(fields: [clientId], references: [id], map: "fk_client")
+  invoice Invoice? @relation(fields: [invoiceId], references: [id])
+  service Service? @relation(fields: [serviceId], references: [id])
+
+  @@map("transactions")
+}
+
+model Phone {
+  tenantId  String    @id @map("tenant_id") @db.Uuid
+  deleted   Boolean   @default(false)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  number      String @db.VarChar(255)
+  instanceId  String @unique @map("instance_id") @db.VarChar(255)
+  token       String @db.VarChar(255)
+  clientToken String @map("client_token") @db.VarChar(255)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], map: "fk_tenant")
+
+  @@map("phones")
+}
+
+model Message {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
+  deleted   Boolean   @default(false)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  direction  String  @db.VarChar(255)
+  phone      String  @db.VarChar(255)
+  text       String
+  externalId String? @map("external_id") @db.VarChar(255)
+  clientId   String? @map("client_id") @db.Uuid
+
+  tenant Tenant  @relation(fields: [tenantId], references: [id], map: "fk_tenant")
+  client Client? @relation(fields: [clientId], references: [id], map: "fk_client")
+
+  @@index([tenantId, phone])
+  @@map("messages")
+}
+
+model RefreshToken {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
+  deleted   Boolean   @default(false)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  tokenHash    String    @unique @map("token_hash") @db.VarChar(255)
+  userId       String    @map("user_id") @db.Uuid
+  expiresAt    DateTime  @map("expires_at") @db.Timestamptz(6)
+  revoked      Boolean   @default(false)
+  revokedAt    DateTime? @map("revoked_at") @db.Timestamptz(6)
+  replacedById String?   @map("replaced_by_id") @db.Uuid
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], map: "fk_tenant")
+  user   User   @relation(fields: [userId], references: [id], map: "fk_user")
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model AccessHistory {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
+  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  userId    String @map("user_id") @db.Uuid
+  operation String @db.VarChar(255)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], map: "fk_tenant")
+  user   User   @relation(fields: [userId], references: [id], map: "fk_user")
+
+  @@map("access_histories")
+}
